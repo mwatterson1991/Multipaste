@@ -302,8 +302,14 @@
   for (const link of downloads) {
     link.href = CHECKOUT || "#install";
     if (CHECKOUT) continue;
-    // The click shows the install steps; a moment later the file starts downloading without leaving them.
-    link.addEventListener("click", () => setTimeout(() => { location.href = APP; }, 300));
+    // The click shows the install steps; a moment later the file starts downloading behind them.
+    // It is fetched in a hidden frame, so if the file is ever missing the steps stay on screen instead of an error page.
+    link.addEventListener("click", () => setTimeout(() => {
+      const frame = document.createElement("iframe");
+      frame.hidden = true;
+      frame.src = APP;
+      document.body.append(frame);
+    }, 300));
   }
 
   /* ---------- Type set to the measure ---------- */
