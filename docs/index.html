@@ -26,6 +26,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { -webkit-text-size-adjust: 100%; }
   [hidden] { display: none !important; }
+  /* The big type is sized by the script. Until that has happened the page stays blank, so nothing is seen to resize. */
+  html:not(.sized) main { visibility: hidden; }
 
   body {
     background: var(--paper);
@@ -275,7 +277,7 @@
   <main id="landing">
     <h1 class="statement">Copy<br class="narrow"> multiple things.<br> Paste<br class="narrow"> multiple things.</h1>
 
-    <div class="demo" role="img" aria-label="Five cards are copied one after another. The screen changes, and each press of Command V pastes the next one. Then the same thing happens with five phrases from a paragraph of text."></div>
+    <div class="demo" role="img" aria-label="Five cards are copied one after another. The screen changes, and each press of Command V pastes the next one. Then the same thing happens with four phrases from a line of text."></div>
 
     <p class="statement">Without having<br class="narrow"> to go<br class="wide"> back<br class="narrow"> and forth.</p>
 
@@ -342,6 +344,7 @@
     const room = page.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const size = Math.min((room / widest) * probe, 150);
     root.style.setProperty("--type", size.toFixed(2) + "px");
+    root.classList.add("sized");
   }
 
   /* ---------- Demo ---------- */
@@ -349,12 +352,11 @@
   const demo = document.querySelector(".demo");
   const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
   const EASE_IN_OUT = "cubic-bezier(0.77, 0, 0.175, 1)";
-  const COPIES = 5;
 
   // x, y, width, height, then colour and copy order for the five that get copied.
   // The five carry colour so the eye can follow the same five from one screen to the next, in order.
   const WIDE = {
-    W: 1200, H: 520, gap: 24, scale: 1, type: 84, room: 90,
+    W: 1200, H: 520, gap: 24, scale: 1, type: 120, room: 90,
     wall: [
       [0, 0, 180, 220, "red", 1], [0, 244, 180, 130], [0, 398, 180, 122],
       [204, 0, 180, 140], [204, 164, 180, 236, "blue", 2], [204, 424, 180, 96],
@@ -365,7 +367,7 @@
     ],
   };
   const NARROW = {
-    W: 520, H: 500, gap: 20, scale: 0.55, type: 46, room: 96,
+    W: 520, H: 500, gap: 20, scale: 0.55, type: 70, room: 96,
     wall: [
       [0, 0, 160, 200, "red", 1], [0, 220, 160, 130], [0, 370, 160, 130, "blue", 2],
       [180, 0, 160, 130], [180, 150, 160, 220, "yellow", 3], [180, 390, 160, 110],
@@ -376,9 +378,8 @@
   // The paragraph. A piece with a colour is one of the five phrases that get copied.
   // Each phrase is short enough to sit on one line at any width, so every selection is one clean drag from left to right.
   const TEXT = [
-    ["The idea", "red"], [" is that I can "], ["go to Pinterest", "blue"], [", and "], ["copy like 5 things", "yellow"],
-    [", and then "], ["go to Figma", "ink"], [" and "], ["paste 5 things", "green"],
-    [", without having to go back and forth."],
+    ["Copy 5 things", "red"], [", "], ["go to Figma", "blue"], [", "], ["paste 5 things", "yellow"], [". "],
+    ["No back and forth", "ink"], ["."],
   ];
 
   let run = 0;
@@ -587,7 +588,8 @@
     let size = plan.type * k;
     for (let tries = 0; tries < 60; tries++) {
       demo.style.setProperty("--demo-type", size.toFixed(2) + "px");
-      if (para.offsetHeight <= demo.clientHeight && lines.offsetHeight <= demo.clientHeight - plan.room * k) break;
+      const fitsAcross = para.scrollWidth <= demo.clientWidth + 1 && lines.scrollWidth <= demo.clientWidth + 1;
+      if (fitsAcross && para.offsetHeight <= demo.clientHeight && lines.offsetHeight <= demo.clientHeight - plan.room * k) break;
       size *= 0.97;
     }
 
@@ -762,12 +764,13 @@
       const next = scenes[(turn + 1) % scenes.length];
 
       // Copy, copy, copy.
-      for (let i = 0; i < COPIES; i++) {
+      const copies = scene.pasted.length;
+      for (let i = 0; i < copies; i++) {
         await scene.copy(i);
         if (!current()) return;
         // True to the app: the first copy is the ordinary clipboard, the count starts at two.
         tag("\u2318C", i > 0 ? i + 1 : null, 560);
-        await sleep(i === COPIES - 1 ? 440 : 280);
+        await sleep(i === copies - 1 ? 440 : 280);
         if (!current()) return;
       }
 
@@ -778,7 +781,7 @@
       if (!current()) return;
 
       // Paste, paste, paste: the pointer goes to each spot, the keys blink once, and the next one lands there.
-      for (let i = 0; i < COPIES; i++) {
+      for (let i = 0; i < copies; i++) {
         if (i > 0) await travel(scene.slot(i));
         await sleep(80);
         if (!current()) return;
@@ -851,9 +854,10 @@
   }
   addEventListener("hashchange", show);
 
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(show);
-  else show();
+  // Straight away, before the page is first shown. The fonts are the Mac's own, so there is nothing to wait for.
+  show();
 })();
 </script>
+<noscript><style>main { visibility: visible !important; }</style></noscript>
 </body>
 </html>
