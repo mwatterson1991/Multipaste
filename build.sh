@@ -17,8 +17,9 @@ build() {
 
   pkill -x "$NAME" 2>/dev/null
   rm -rf "$APP"
-  mkdir -p "$APP/Contents/MacOS" || return 1
+  mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" || return 1
   cp Info.plist "$APP/Contents/Info.plist" || return 1
+  cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns" || return 1
 
   xcrun swiftc -O -swift-version 5 \
     -target "$(uname -m)-apple-macos13.0" \

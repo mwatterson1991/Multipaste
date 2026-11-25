@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- The app icon: the logomark's three squares, red, blue and yellow in the order things are copied, each edged in white. -->
+  <defs><filter id="lift" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.28"/></filter></defs>
+  <!-- The grey tile every Mac app icon sits on: 824 of the 1024 canvas, with the standard soft shadow under it. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#c2c2c2" filter="url(#lift)"/>
+  <rect x="237.0" y="237.0" width="330.0" height="330.0" rx="72.6" fill="#fff"/>
+  <rect x="265.6" y="265.6" width="272.8" height="272.8" rx="46.2" fill="#e8301c"/>
+  <rect x="347.0" y="347.0" width="330.0" height="330.0" rx="72.6" fill="#fff"/>
+  <rect x="375.6" y="375.6" width="272.8" height="272.8" rx="46.2" fill="#1f4bff"/>
+  <rect x="457.0" y="457.0" width="330.0" height="330.0" rx="72.6" fill="#fff"/>
+  <rect x="485.6" y="485.6" width="272.8" height="272.8" rx="46.2" fill="#ffc800"/>
+</svg>

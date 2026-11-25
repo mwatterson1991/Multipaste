@@ -7,8 +7,9 @@ NAME="Multipaste"
 APP="build/$NAME.app"
 
 rm -rf build
-mkdir -p "$APP/Contents/MacOS" build/slices
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" build/slices
 cp Info.plist "$APP/Contents/Info.plist"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 for ARCH in arm64 x86_64; do
   xcrun swiftc -O -swift-version 5 \

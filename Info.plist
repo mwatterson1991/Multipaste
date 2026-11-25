@@ -8,6 +8,8 @@
 	<string>Multipaste</string>
 	<key>CFBundleExecutable</key>
 	<string>Multipaste</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.mwatterson1991.multipaste</string>
 	<key>CFBundlePackageType</key>
