@@ -294,10 +294,17 @@
 
 <script>
 (() => {
-  // The payment link goes here. While it is empty, Download goes straight to the install steps, so the flow can be clicked through.
+  // The payment link goes here. While it is empty, Download hands over the app and shows the install steps.
   const CHECKOUT = "";
+  // The app itself: the latest build made on GitHub.
+  const APP = "https://github.com/mwatterson1991/Multipaste/releases/download/latest/Multipaste.zip";
   const downloads = document.querySelectorAll("[data-download]");
-  for (const link of downloads) link.href = CHECKOUT || "#install";
+  for (const link of downloads) {
+    link.href = CHECKOUT || "#install";
+    if (CHECKOUT) continue;
+    // The click shows the install steps; a moment later the file starts downloading without leaving them.
+    link.addEventListener("click", () => setTimeout(() => { location.href = APP; }, 300));
+  }
 
   /* ---------- Type set to the measure ---------- */
 
