@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Multipaste</title>
+<meta name="description" content="Copy multiple things. Paste multiple things.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cstyle%3Eg%7Bstroke:%23000%7D%40media%28prefers-color-scheme:dark%29%7Bg%7Bstroke:%23fff%7D%7D%3C/style%3E%3Cmask id='a' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Cpath fill='%23fff' d='M0 0h24v24H0z'/%3E%3Crect x='5' y='5' width='14' height='14' rx='3'/%3E%3C/mask%3E%3Cmask id='b' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Cpath fill='%23fff' d='M0 0h24v24H0z'/%3E%3Crect x='10' y='10' width='14' height='14' rx='3'/%3E%3C/mask%3E%3Cg fill='none' stroke-width='2'%3E%3Crect x='1' y='1' width='12' height='12' rx='2' mask='url%28%23a%29'/%3E%3Crect x='6' y='6' width='12' height='12' rx='2' mask='url%28%23b%29'/%3E%3Crect x='11' y='11' width='12' height='12' rx='2'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    --paper: #fff;
+    --ink: #000;
+    --wall: #e9e9e9;
+    --mute: #b4b4b4;
+    --plate: #d2d2d2;
+    --red: #e8301c;
+    --blue: #1f4bff;
+    --yellow: #ffc800;
+    --green: #00a651;
+    --gutter: clamp(20px, 4.5vw, 72px);
+    /* The script below replaces this with an exact fit to the page width. */
+    --type: 7.3vw;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  [hidden] { display: none !important; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    /* Helvetica Neue ships on every Mac, and this is a Mac app. */
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; }
+  a:focus-visible { outline: 3px solid var(--ink); outline-offset: 5px; }
+
+  .page {
+    padding: 0 var(--gutter) clamp(48px, 7vw, 110px);
+    /* The cards leave past the edge of the screen, not past an invisible box. */
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  .bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: clamp(8px, 1.4vw, 24px);
+    font-size: 17px;
+    letter-spacing: -0.01em;
+  }
+  /* Tall enough to hit with a thumb. */
+  .bar a { display: inline-flex; align-items: center; min-height: 44px; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  .bar a.brand { text-decoration: none; }
+
+  .brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; }
+
+  /* Three squares are pasted, turn black, and are pulled back in reverse: out and back, like a yo-yo. */
+  .mark { width: 22px; height: 22px; overflow: visible; }
+  .mark .face { fill: var(--paper); stroke: currentColor; stroke-width: 2; }
+  /* A sliver of paper around each square, so three black squares still read as three. */
+  .mark .gap { fill: none; stroke: var(--paper); stroke-width: 5; opacity: 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mark g { transform-box: fill-box; transform-origin: center; }
+    .mark g:nth-child(1) { animation: mark-1 2700ms infinite; }
+    .mark g:nth-child(2) { animation: mark-2 2700ms infinite; }
+    .mark g:nth-child(3) { animation: mark-3 2700ms infinite; }
+    .mark g:nth-child(1) .face { animation: mark-ink-1 2700ms infinite; }
+    .mark g:nth-child(2) .face { animation: mark-ink-2 2700ms infinite; }
+    .mark g:nth-child(3) .face { animation: mark-ink-3 2700ms infinite; }
+    .mark g:nth-child(1) .gap { animation: mark-gap-1 2700ms infinite; }
+    .mark g:nth-child(2) .gap { animation: mark-gap-2 2700ms infinite; }
+    .mark g:nth-child(3) .gap { animation: mark-gap-3 2700ms infinite; }
+  }
+  @keyframes mark-1 {
+    0% { opacity: 0; transform: scale(0.6); animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+    6.67% { opacity: 1; transform: none; }
+    74.44% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+    81.11%, 100% { opacity: 0; transform: scale(0.6); }
+  }
+  @keyframes mark-2 {
+    0%, 4.81% { opacity: 0; transform: translate(-5px, -5px); animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+    11.48% { opacity: 1; transform: none; }
+    69.63% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+    76.30%, 100% { opacity: 0; transform: translate(-5px, -5px); }
+  }
+  @keyframes mark-3 {
+    0%, 9.63% { opacity: 0; transform: translate(-5px, -5px); animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+    16.30% { opacity: 1; transform: none; }
+    64.81% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+    71.48%, 100% { opacity: 0; transform: translate(-5px, -5px); }
+  }
+  @keyframes mark-ink-1 {
+    0%, 29.63% { fill: var(--paper); }
+    35.56%, 81.48% { fill: var(--ink); }
+    81.85%, 100% { fill: var(--paper); }
+  }
+  @keyframes mark-gap-1 {
+    0%, 29.63% { opacity: 0; }
+    35.56%, 81.48% { opacity: 1; }
+    81.85%, 100% { opacity: 0; }
+  }
+  @keyframes mark-ink-2 {
+    0%, 32.96% { fill: var(--paper); }
+    38.89%, 76.67% { fill: var(--ink); }
+    77.04%, 100% { fill: var(--paper); }
+  }
+  @keyframes mark-gap-2 {
+    0%, 32.96% { opacity: 0; }
+    38.89%, 76.67% { opacity: 1; }
+    77.04%, 100% { opacity: 0; }
+  }
+  @keyframes mark-ink-3 {
+    0%, 36.30% { fill: var(--paper); }
+    42.22%, 71.85% { fill: var(--ink); }
+    72.22%, 100% { fill: var(--paper); }
+  }
+  @keyframes mark-gap-3 {
+    0%, 36.30% { opacity: 0; }
+    42.22%, 71.85% { opacity: 1; }
+    72.22%, 100% { opacity: 0; }
+  }
+
+  /* Every line break is placed by hand, so no line is ever left with one stray word. */
+  .statement {
+    font-size: var(--type);
+    font-weight: 700;
+    line-height: 0.94;
+    letter-spacing: -0.045em;
+    white-space: nowrap;
+  }
+  .statement a { text-decoration-thickness: 0.06em; text-underline-offset: 0.1em; }
+
+  @media (min-width: 720px) { br.narrow { display: none; } }
+  @media (max-width: 719px) {
+    :root { --type: 10.4vw; }
+    br.wide { display: none; }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    a[data-download] { transition: text-decoration-thickness 160ms ease; }
+    .bar a[data-download]:hover { text-decoration-thickness: 4px; }
+    .statement a[data-download]:hover { text-decoration-thickness: 0.11em; }
+  }
+
+  #landing h1.statement { margin-top: clamp(48px, 9vw, 150px); }
+  #landing p.statement { margin-top: clamp(84px, 13vw, 220px); }
+
+  /* The install steps: four lines, closer together because they are one list. */
+  #install .statement { margin-top: clamp(40px, 6vw, 96px); }
+  #install .statement:first-child { margin-top: clamp(48px, 9vw, 150px); }
+
+  .demo {
+    position: relative;
+    margin-top: clamp(44px, 7vw, 120px);
+    aspect-ratio: 1200 / 520;
+  }
+  @media (max-width: 719px) { .demo { aspect-ratio: 520 / 500; } }
+
+  /* Four screens take turns on one stage: the wall of cards, the row it becomes, the paragraph, the lines it becomes. */
+  .layer { position: absolute; inset: 0; will-change: transform; }
+
+  .tile { position: absolute; background: var(--wall); }
+  .tile[data-c="ink"] { background: var(--ink); }
+  .tile[data-c="red"] { background: var(--red); }
+  .tile[data-c="blue"] { background: var(--blue); }
+  .tile[data-c="yellow"] { background: var(--yellow); }
+  .tile[data-c="green"] { background: var(--green); }
+  .pasted { opacity: 0; }
+
+  /* The paragraph plays the part of the wall: grey is everything else, colour is what gets copied. */
+  .para, .lines {
+    font-size: var(--demo-type, 40px);
+    line-height: 1.2;
+    letter-spacing: -0.035em;
+    color: var(--mute);
+    white-space: normal;
+  }
+  .pick {
+    --c: var(--red);
+    --on: var(--ink);
+    /* A phrase never breaks across lines, so selecting it is always a single drag. */
+    white-space: nowrap;
+    /* One unbroken band behind the phrase, running on across line breaks. Its edge only ever sits between two characters. */
+    background: linear-gradient(var(--c), var(--c)) no-repeat 0 0 / 0% 100%;
+    -webkit-box-decoration-break: slice;
+    box-decoration-break: slice;
+  }
+  .pick[data-c="blue"] { --c: var(--blue); --on: var(--paper); }
+  .pick[data-c="yellow"] { --c: var(--yellow); }
+  .pick[data-c="ink"] { --c: var(--ink); --on: var(--paper); }
+  .pick[data-c="green"] { --c: var(--green); }
+  /* Selected one character at a time, the way a real selection grows. No fade: a character is either in or out. */
+  .ch.sel { color: var(--on); }
+  .pick.on { background-size: 100% 100%; color: var(--on); }
+  .line { display: block; }
+  .line + .line { margin-top: 0.12em; }
+
+  /* The pointer: white, with a wall of thickness under its face and a shadow that parts from it as it lifts. */
+  .cursor { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 3; pointer-events: none; will-change: transform; }
+  .cursor svg { position: absolute; left: 0; top: 0; width: 28px; height: 41px; overflow: visible; will-change: transform; }
+  .cursor-body { transform-origin: 0 0; }
+  .cursor-shadow { filter: blur(4px); opacity: 0.2; }
+
+  /* What sits beside the pointer: the keys being pressed and, from the second copy, the count. */
+  .tag {
+    position: absolute;
+    left: 38px;
+    top: 19px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* A grey plate, so the keys are easy to see on the white page and over every card. */
+    padding: 6px 7px 6px 11px;
+    background: var(--plate);
+    translate: 0 -50%;
+    transform-origin: left center;
+    opacity: 0;
+  }
+  /* Near the right edge there is no room beside the pointer, so it sits on the other side. */
+  .tag.flipped { left: auto; right: 8px; transform-origin: right center; }
+
+  .keys {
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    /* Cancels the space letter-spacing leaves after the last key. */
+    margin-right: -0.14em;
+    white-space: nowrap;
+  }
+
+  /* The same black square the app shows beside the pointer. */
+  .count {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 9px;
+    border-radius: 7px;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 15px;
+    line-height: 30px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 719px) {
+    .cursor svg { width: 22px; height: 32px; }
+    .tag { left: 30px; top: 15px; gap: 7px; padding: 5px 6px 5px 8px; }
+    .keys { font-size: 15px; }
+    .count { min-width: 24px; height: 24px; padding: 0 7px; border-radius: 6px; font-size: 13px; line-height: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="bar">
+    <a class="brand" href="#">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+        <g><rect class="gap" x="1" y="1" width="12" height="12" rx="2"/><rect class="face" x="1" y="1" width="12" height="12" rx="2"/></g>
+        <g><rect class="gap" x="6" y="6" width="12" height="12" rx="2"/><rect class="face" x="6" y="6" width="12" height="12" rx="2"/></g>
+        <g><rect class="gap" x="11" y="11" width="12" height="12" rx="2"/><rect class="face" x="11" y="11" width="12" height="12" rx="2"/></g>
+      </svg>
+      <span>Multipaste</span>
+    </a>
+    <a data-download href="#install">Download</a>
+  </header>
+
+  <main id="landing">
+    <h1 class="statement">Copy<br class="narrow"> multiple things.<br> Paste<br class="narrow"> multiple things.</h1>
+
+    <div class="demo" role="img" aria-label="Five cards are copied one after another. The screen changes, and each press of Command V pastes the next one. Then the same thing happens with five phrases from a paragraph of text."></div>
+
+    <p class="statement">Without having<br class="narrow"> to go<br class="wide"> back<br class="narrow"> and forth.</p>
+
+    <p class="statement"><a data-download href="#install">Download</a></p>
+  </main>
+
+  <!-- Where a buyer lands after paying: the install, in order. Its address is this page's address with #install on the end. -->
+  <main id="install" hidden>
+    <h1 class="statement">Open<br class="narrow"> the download.</h1>
+    <p class="statement">Drag Multipaste<br class="narrow"> to Applications.</p>
+    <p class="statement">Open Multipaste.</p>
+    <p class="statement">Allow<br class="narrow"> Accessibility.</p>
+  </main>
+
+</div>
+
+<script>
+(() => {
+  // The payment link goes here. While it is empty, Download goes straight to the install steps, so the flow can be clicked through.
+  const CHECKOUT = "";
+  const downloads = document.querySelectorAll("[data-download]");
+  for (const link of downloads) link.href = CHECKOUT || "#install";
+
+  /* ---------- Type set to the measure ---------- */
+
+  const root = document.documentElement;
+  const page = document.querySelector(".page");
+  const statements = document.querySelectorAll(".statement");
+
+  function fitType() {
+    const probe = 100;
+    root.style.setProperty("--type", probe + "px");
+    let widest = 0;
+    for (const statement of statements) {
+      // Only the view on screen sets the size.
+      if (!statement.offsetParent) continue;
+      const range = document.createRange();
+      range.selectNodeContents(statement);
+      const lines = new Map();
+      for (const rect of range.getClientRects()) {
+        if (!rect.width) continue;
+        const key = Math.round(rect.top);
+        const line = lines.get(key) || { left: Infinity, right: -Infinity };
+        line.left = Math.min(line.left, rect.left);
+        line.right = Math.max(line.right, rect.right);
+        lines.set(key, line);
+      }
+      for (const line of lines.values()) widest = Math.max(widest, line.right - line.left);
+    }
+    const style = getComputedStyle(page);
+    const room = page.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const size = Math.min((room / widest) * probe, 150);
+    root.style.setProperty("--type", size.toFixed(2) + "px");
+  }
+
+  /* ---------- Demo ---------- */
+
+  const demo = document.querySelector(".demo");
+  const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
+  const EASE_IN_OUT = "cubic-bezier(0.77, 0, 0.175, 1)";
+  const COPIES = 5;
+
+  // x, y, width, height, then colour and copy order for the five that get copied.
+  // The five carry colour so the eye can follow the same five from one screen to the next, in order.
+  const WIDE = {
+    W: 1200, H: 520, gap: 24, scale: 1, type: 84, room: 90,
+    wall: [
+      [0, 0, 180, 220, "red", 1], [0, 244, 180, 130], [0, 398, 180, 122],
+      [204, 0, 180, 140], [204, 164, 180, 236, "blue", 2], [204, 424, 180, 96],
+      [408, 0, 180, 260, "yellow", 3], [408, 284, 180, 110], [408, 418, 180, 102],
+      [612, 0, 180, 120], [612, 144, 180, 150, "ink", 4], [612, 318, 180, 202],
+      [816, 0, 180, 190], [816, 214, 180, 140, "green", 5], [816, 378, 180, 142],
+      [1020, 0, 180, 150], [1020, 174, 180, 210], [1020, 408, 180, 112],
+    ],
+  };
+  const NARROW = {
+    W: 520, H: 500, gap: 20, scale: 0.55, type: 46, room: 96,
+    wall: [
+      [0, 0, 160, 200, "red", 1], [0, 220, 160, 130], [0, 370, 160, 130, "blue", 2],
+      [180, 0, 160, 130], [180, 150, 160, 220, "yellow", 3], [180, 390, 160, 110],
+      [360, 0, 160, 240, "ink", 4], [360, 260, 160, 100], [360, 380, 160, 120, "green", 5],
+    ],
+  };
+
+  // The paragraph. A piece with a colour is one of the five phrases that get copied.
+  // Each phrase is short enough to sit on one line at any width, so every selection is one clean drag from left to right.
+  const TEXT = [
+    ["The idea", "red"], [" is that I can "], ["go to Pinterest", "blue"], [", and "], ["copy like 5 things", "yellow"],
+    [", and then "], ["go to Figma", "ink"], [" and "], ["paste 5 things", "green"],
+    [", without having to go back and forth."],
+  ];
+
+  let run = 0;
+  let stage = null;
+
+  /* ----- The pointer ----- */
+
+  const cur = { x: 0, y: 0, vx: 0, vy: 0, move: null, moves: 0, press: 0, pressing: 0, drag: null, frame: 0, last: 0 };
+  const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+
+  // Every move is one unbroken curve. It eases out of rest, bows a little the way a hand swings from the wrist,
+  // and eases back to rest; longer trips take longer.
+  function travel(to, options = {}) {
+    if (cur.move) cur.move.done();
+    const from = { x: cur.x, y: cur.y };
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const far = Math.hypot(dx, dy) || 1;
+    const ms = options.ms || clamp(320 + far * 1.2, 460, 1200);
+    // The bow alternates sides so no two trips trace the same line.
+    cur.moves += 1;
+    const bow = (options.bow === undefined ? 0.13 : options.bow) * far * (cur.moves % 2 ? 1 : -1);
+    const via = { x: from.x + dx / 2 - (dy / far) * bow, y: from.y + dy / 2 + (dx / far) * bow };
+    return new Promise((done) => {
+      cur.move = { from, via, to, start: performance.now(), ms, done };
+    });
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - cur.last) / 1000 || 0.016);
+    cur.last = now;
+    const wasX = cur.x;
+    const wasY = cur.y;
+
+    const move = cur.move;
+    if (move) {
+      const u = clamp((now - move.start) / move.ms, 0, 1);
+      // The gentlest way from rest to rest: no jolt at either end.
+      const s = u * u * u * (u * (u * 6 - 15) + 10);
+      const r = 1 - s;
+      cur.x = r * r * move.from.x + 2 * r * s * move.via.x + s * s * move.to.x;
+      cur.y = r * r * move.from.y + 2 * r * s * move.via.y + s * s * move.to.y;
+      if (u === 1) {
+        cur.move = null;
+        move.done();
+      }
+    }
+
+    // Speed is smoothed, so the lean builds and fades instead of twitching.
+    const blend = Math.min(1, dt * 7);
+    cur.vx += ((cur.x - wasX) / dt - cur.vx) * blend;
+    cur.vy += ((cur.y - wasY) / dt - cur.vy) * blend;
+    cur.press += (cur.pressing - cur.press) * Math.min(1, dt * 16);
+    const p = cur.press;
+
+    // While the button is held for a drag, whatever is being selected follows the pointer exactly.
+    if (cur.drag) cur.drag(cur.x, cur.y);
+
+    // A slow drift over everything, so it is always floating. It steadies while the button is down.
+    const t = now / 1000;
+    const loose = (stage.narrow ? 0.7 : 1) * (1 - p);
+    const driftX = (Math.sin(t * 1.25) * 2.6 + Math.sin(t * 0.8 + 1) * 1.5) * loose;
+    const driftY = Math.cos(t * 1.05) * 3.2 * loose;
+    stage.cursor.style.transform = `translate(${cur.x + driftX}px, ${cur.y + driftY}px)`;
+
+    // It leans into the direction it is travelling, and dips toward the page when pressed.
+    const lean = clamp(cur.vx * 0.006, -5, 5) + Math.sin(t * 0.9) * 1.2 * (1 - p);
+    const yaw = clamp(cur.vx * 0.008, -8, 8);
+    const pitch = clamp(-cur.vy * 0.007, -6, 6);
+    stage.body.style.transform =
+      `perspective(260px) rotateX(${pitch}deg) rotateY(${yaw}deg) rotate(${lean}deg) translate(${1.4 * p}px, ${2.4 * p}px) scale(${1 - 0.07 * p})`;
+    stage.shadow.style.transform = `translate(${7 * (1 - p) + 1.5}px, ${11 * (1 - p) + 2.5}px)`;
+    stage.shadow.style.opacity = 0.2 + 0.14 * p;
+
+    cur.frame = requestAnimationFrame(frame);
+  }
+
+  function tap() {
+    cur.pressing = 1;
+    setTimeout(() => { cur.pressing = 0; }, 150);
+  }
+
+  /* ----- The keys beside the pointer ----- */
+
+  let tagMotion = null;
+
+  function tag(keys, number, hold) {
+    const { tagEl, tagKeys, tagCount } = stage;
+    tagKeys.textContent = keys;
+    tagCount.hidden = !number;
+    tagCount.textContent = number || "";
+
+    const room = root.clientWidth - 8 - (demo.getBoundingClientRect().left + cur.x + 38);
+    tagEl.classList.toggle("flipped", tagEl.offsetWidth > room);
+
+    if (tagMotion) tagMotion.cancel();
+    const rise = 70;
+    const fall = 110;
+    const total = rise + hold + fall;
+    tagMotion = tagEl.animate(
+      [
+        { opacity: 0, transform: "scale(0.9)" },
+        { opacity: 1, transform: "scale(1)", offset: rise / total },
+        { opacity: 1, transform: "scale(1)", offset: (rise + hold) / total },
+        { opacity: 0, transform: "scale(1)" },
+      ],
+      { duration: total, easing: "linear" }
+    );
+  }
+
+  /* ----- The stage ----- */
+
+  function build() {
+    const narrow = matchMedia("(max-width: 719px)").matches;
+    const plan = narrow ? NARROW : WIDE;
+    const { W, H, gap, scale } = plan;
+
+    demo.replaceChildren();
+    const k = demo.clientWidth / W;
+    const at = (x, y) => ({ x: x * k, y: y * k });
+
+    const layer = () => {
+      const el = document.createElement("div");
+      el.className = "layer";
+      demo.append(el);
+      return el;
+    };
+
+    /* Cards */
+
+    const wall = layer();
+    const row = layer();
+
+    const tile = (parent, x, y, w, h, colour) => {
+      const el = document.createElement("div");
+      el.className = "tile";
+      if (colour) el.dataset.c = colour;
+      el.style.left = (x / W) * 100 + "%";
+      el.style.top = (y / H) * 100 + "%";
+      el.style.width = (w / W) * 100 + "%";
+      el.style.height = (h / H) * 100 + "%";
+      parent.append(el);
+      return el;
+    };
+
+    const cards = [];
+    for (const [x, y, w, h, colour, order] of plan.wall) {
+      const el = tile(wall, x, y, w, h, colour);
+      if (order) cards[order - 1] = { el, x, y, w, h, colour };
+    }
+
+    // Pasted the way a canvas lays images out: one row, tops aligned, in the order they were copied.
+    const tallest = Math.max(...cards.map((card) => card.h)) * scale;
+    const rowY = (H - tallest) / 2;
+    const step = cards[0].w * scale + gap;
+    const rowTiles = cards.map((card, i) => {
+      const el = tile(row, i * step, rowY, card.w * scale, card.h * scale, card.colour);
+      el.classList.add("pasted");
+      return el;
+    });
+
+    /* Text */
+
+    const paraLayer = layer();
+    const para = document.createElement("p");
+    para.className = "para";
+    const phrases = [];
+    for (const [words, colour] of TEXT) {
+      if (!colour) {
+        para.append(words);
+        continue;
+      }
+      const span = document.createElement("span");
+      span.className = "pick";
+      span.dataset.c = colour;
+      // One piece per character, so the selection can take them one at a time.
+      for (const letter of words) {
+        const ch = document.createElement("span");
+        ch.className = "ch";
+        ch.textContent = letter;
+        span.append(ch);
+      }
+      para.append(span);
+      phrases.push(span);
+    }
+    paraLayer.append(para);
+
+    // Pasted the way the app pastes text: one item per line, in the order they were copied.
+    const linesLayer = layer();
+    const lines = document.createElement("div");
+    lines.className = "lines";
+    const lineEls = phrases.map((phrase) => {
+      const line = document.createElement("span");
+      line.className = "line pasted";
+      const span = document.createElement("span");
+      span.className = "pick on";
+      span.dataset.c = phrase.dataset.c;
+      span.textContent = phrase.textContent;
+      line.append(span);
+      lines.append(line);
+      return line;
+    });
+    linesLayer.append(lines);
+
+    // The largest type at which the paragraph fits the stage and the pasted lines leave room below for the pointer.
+    let size = plan.type * k;
+    for (let tries = 0; tries < 60; tries++) {
+      demo.style.setProperty("--demo-type", size.toFixed(2) + "px");
+      if (para.offsetHeight <= demo.clientHeight && lines.offsetHeight <= demo.clientHeight - plan.room * k) break;
+      size *= 0.97;
+    }
+
+    /* Pointer */
+
+    const cursor = document.createElement("div");
+    cursor.className = "cursor";
+    const arrow = "M2 2v23.4l6-5.6 4.3 9.5 3.8-1.7-4.2-9.2h8.3z";
+    const steps = [0, 1, 2, 3, 4, 5, 6].map((n) => `<path d="${arrow}" transform="translate(${0.35 * n} ${0.6 * n})"/>`).join("");
+    cursor.innerHTML =
+      `<svg class="cursor-shadow" viewBox="0 0 24 35"><path d="${arrow}" fill="#000"/></svg>` +
+      `<svg class="cursor-body" viewBox="0 0 24 35">` +
+        // A dark edge all round, so the white reads on the white page.
+        `<g fill="#000" stroke="#000" stroke-width="3.2" stroke-linejoin="round">` + steps + `</g>` +
+        // Its thickness: the same shape stepped down and to the right, in grey.
+        `<g fill="#b4b4b4" stroke="#b4b4b4" stroke-width="1" stroke-linejoin="round">` + steps + `</g>` +
+        // Its face.
+        `<path d="${arrow}" fill="#fff" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>` +
+      `</svg>` +
+      `<div class="tag"><span class="keys"></span><span class="count" hidden></span></div>`;
+    demo.append(cursor);
+
+    const offstage = () => {
+      const box = demo.getBoundingClientRect();
+      return { left: -(box.right + 4), right: root.clientWidth - box.left + 4 };
+    };
+
+    const cardsScene = {
+      source: wall,
+      result: row,
+      pasted: rowTiles,
+      rest: at(W * 0.2, H * 0.86),
+      // Onto the card, a beat to settle, then the keys.
+      async copy(i) {
+        const card = cards[i];
+        await travel(at(card.x + card.w / 2, card.y + card.h / 2));
+        await sleep(70);
+        tap();
+        card.el.animate(
+          [{ transform: "scale(1)" }, { transform: "scale(0.95)", offset: 0.3 }, { transform: "scale(1)" }],
+          { duration: 340, easing: EASE_OUT }
+        );
+      },
+      // Each card is pasted where the pointer is, so the pointer goes to each spot in turn.
+      slot: (i) => at(i * step + (cards[i].w * scale) / 2, rowY + (cards[i].h * scale) / 2),
+      clear() {},
+    };
+
+    // Where a piece of text sits on the stage, one entry per line it runs across.
+    const rowsOf = (el) => {
+      const box = demo.getBoundingClientRect();
+      return [...el.getClientRects()].map((r) => ({
+        left: r.left - box.left, right: r.right - box.left, top: r.top - box.top, bottom: r.bottom - box.top,
+      }));
+    };
+
+    const textScene = {
+      source: paraLayer,
+      result: linesLayer,
+      pasted: lineEls,
+      rest: at(W * 0.34, H * 0.8),
+      // The way text is really selected: go to the start of the phrase, press, drag to its end, let go.
+      // The selection takes one character at a time, each the moment the pointer passes its middle.
+      async copy(i) {
+        const phrase = phrases[i];
+        const box = demo.getBoundingClientRect();
+        const letters = [...phrase.children].map((el) => {
+          const r = el.getBoundingClientRect();
+          return { el, left: r.left - box.left, right: r.right - box.left, top: r.top - box.top, bottom: r.bottom - box.top };
+        });
+        // The lines the phrase runs across, by where each one starts.
+        const lineTops = [...new Set(letters.map((letter) => Math.round(letter.top)))].sort((a, b) => a - b);
+        for (const letter of letters) letter.line = lineTops.indexOf(Math.round(letter.top));
+        const first = letters[0];
+        const last = letters[letters.length - 1];
+        const rows = rowsOf(phrase);
+        const length = rows.reduce((sum, row) => sum + row.right - row.left, 0);
+        // How far along the band each line starts.
+        const before = rows.map((row, j) => rows.slice(0, j).reduce((sum, earlier) => sum + earlier.right - earlier.left, 0));
+
+        await travel({ x: first.left, y: (first.top + first.bottom) / 2 + 2 });
+        await sleep(110);
+        cur.pressing = 1;
+        await sleep(90);
+
+        let taken = 0;
+        cur.drag = (x, y) => {
+          // Which line the pointer is on: everything on the lines above it is selected, as in a real drag.
+          let on = 0;
+          for (let j = 1; j < lineTops.length; j++) if (y >= lineTops[j]) on = j;
+          let count = 0;
+          for (const letter of letters) {
+            if (letter.line < on || (letter.line === on && (letter.left + letter.right) / 2 < x)) count += 1;
+          }
+          if (count === taken) return;
+          letters.forEach((letter, j) => letter.el.classList.toggle("sel", j < count));
+          // The band reaches the far edge of the last character taken, and no further.
+          const edge = count ? letters[count - 1] : null;
+          const reached = edge ? before[Math.min(edge.line, rows.length - 1)] + edge.right - rows[Math.min(edge.line, rows.length - 1)].left : 0;
+          phrase.style.backgroundSize = clamp((reached / length) * 100, 0, 100) + "% 100%";
+          taken = count;
+        };
+        await travel({ x: last.right + 1, y: (last.top + last.bottom) / 2 + 2 }, { ms: clamp(380 + length * 2, 700, 1500), bow: 0.015 });
+        cur.drag = null;
+        for (const letter of letters) letter.el.classList.add("sel");
+        phrase.style.backgroundSize = "100% 100%";
+        cur.pressing = 0;
+        await sleep(140);
+      },
+      // Text is pasted at the end of the line before it, so the pointer goes to the end of each new line.
+      slot(i) {
+        const rows = rowsOf(lineEls[i].firstChild);
+        const last = rows[rows.length - 1];
+        return { x: last.right + 10, y: (last.top + last.bottom) / 2 - 6 };
+      },
+      clear() {
+        for (const phrase of phrases) {
+          phrase.style.backgroundSize = "";
+          for (const ch of phrase.children) ch.classList.remove("sel");
+        }
+      },
+    };
+
+    stage = {
+      narrow, cursor, offstage,
+      body: cursor.querySelector(".cursor-body"),
+      shadow: cursor.querySelector(".cursor-shadow"),
+      tagEl: cursor.querySelector(".tag"),
+      tagKeys: cursor.querySelector(".keys"),
+      tagCount: cursor.querySelector(".count"),
+      scenes: [cardsScene, textScene],
+    };
+
+    // The paragraph waits off to the right for its turn.
+    paraLayer.style.transform = `translateX(${offstage().right}px)`;
+  }
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function slide(el, from, to, ms) {
+    const move = el.animate(
+      [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
+      { duration: ms, easing: EASE_IN_OUT, fill: "forwards" }
+    );
+    return move.finished.then(
+      () => {
+        el.style.transform = `translateX(${to}px)`;
+        move.cancel();
+      },
+      () => {}
+    );
+  }
+
+  function land(el) {
+    el.animate(
+      [{ opacity: 0, transform: "scale(0.92)" }, { opacity: 1, transform: "scale(1)" }],
+      { duration: 380, easing: EASE_OUT, fill: "forwards" }
+    );
+  }
+
+  async function play(mine) {
+    const current = () => mine === run;
+    const { scenes, offstage } = stage;
+    let turn = 0;
+
+    Object.assign(cur, { x: scenes[0].rest.x, y: scenes[0].rest.y, vx: 0, vy: 0, move: null, drag: null, pressing: 0, last: performance.now() });
+    cur.frame = requestAnimationFrame(frame);
+    await sleep(400);
+
+    while (current()) {
+      const scene = scenes[turn % scenes.length];
+      const next = scenes[(turn + 1) % scenes.length];
+
+      // Copy, copy, copy.
+      for (let i = 0; i < COPIES; i++) {
+        await scene.copy(i);
+        if (!current()) return;
+        // True to the app: the first copy is the ordinary clipboard, the count starts at two.
+        tag("\u2318C", i > 0 ? i + 1 : null, 560);
+        await sleep(i === COPIES - 1 ? 440 : 280);
+        if (!current()) return;
+      }
+
+      // The screen leaves to the left while the pointer travels to where the first one will go.
+      const leaving = slide(scene.source, 0, offstage().left, 900);
+      await travel(scene.slot(0), { ms: 980 });
+      await leaving;
+      if (!current()) return;
+
+      // Paste, paste, paste: the pointer goes to each spot, the keys blink once, and the next one lands there.
+      for (let i = 0; i < COPIES; i++) {
+        if (i > 0) await travel(scene.slot(i));
+        await sleep(80);
+        if (!current()) return;
+        tap();
+        tag("\u2318V", null, 220);
+        land(scene.pasted[i]);
+        await sleep(260);
+      }
+      await sleep(360);
+      if (!current()) return;
+
+      // Nothing ever goes back: the result leaves to the left too, and the next screen arrives from the right.
+      const edge = offstage();
+      const out = slide(scene.result, 0, edge.left, 900);
+      const arriving = slide(next.source, edge.right, 0, 900);
+      await travel(next.rest, { ms: 900 });
+      await out;
+      await arriving;
+      if (!current()) return;
+      for (const el of scene.pasted) el.getAnimations().forEach((motion) => motion.cancel());
+      scene.result.style.transform = "";
+      scene.clear();
+      turn += 1;
+    }
+  }
+
+  const landing = document.getElementById("landing");
+  const install = document.getElementById("install");
+
+  function begin() {
+    run += 1;
+    cancelAnimationFrame(cur.frame);
+    fitType();
+    if (landing.hidden) {
+      demo.replaceChildren();
+      return;
+    }
+    build();
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      // No motion: show where it ends up.
+      const [cards, text] = stage.scenes;
+      stage.cursor.remove();
+      cards.source.remove();
+      text.source.remove();
+      text.result.remove();
+      for (const el of cards.pasted) el.classList.remove("pasted");
+      return;
+    }
+    play(run);
+  }
+
+  let pending;
+  let lastWidth = innerWidth;
+  addEventListener("resize", () => {
+    // Phones fire resize when the address bar hides; only a width change needs a rebuild.
+    if (innerWidth === lastWidth) return;
+    lastWidth = innerWidth;
+    clearTimeout(pending);
+    pending = setTimeout(begin, 150);
+  });
+
+  // #install on the end of the address shows the install steps instead of the page.
+  function show() {
+    const installing = location.hash === "#install";
+    landing.hidden = installing;
+    install.hidden = !installing;
+    for (const link of downloads) if (link.closest(".bar")) link.hidden = installing;
+    scrollTo(0, 0);
+    begin();
+  }
+  addEventListener("hashchange", show);
+
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(show);
+  else show();
+})();
+</script>
+</body>
+</html>

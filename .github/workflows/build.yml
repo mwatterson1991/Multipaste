@@ -1,0 +1,57 @@
+# Builds the app on one of GitHub's Macs whenever the app's code changes, checks that it starts and
+# stacks copies, and publishes the zip as the "Latest build" download.
+name: Build app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Sources/**"
+      - "Info.plist"
+      - "scripts/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show tools
+        run: |
+          sw_vers
+          xcrun swiftc --version
+
+      - name: Build and zip
+        run: bash scripts/package.sh
+
+      - name: Check it starts and stacks copies
+        run: |
+          MULTIPASTE_LOG=1 build/Multipaste.app/Contents/MacOS/Multipaste > build/run.log 2>&1 &
+          APP_PID=$!
+          sleep 5
+          printf 'one' | pbcopy;   sleep 1.5
+          printf 'two' | pbcopy;   sleep 1.5
+          printf 'two' | pbcopy;   sleep 1.5   # the same thing twice should count once
+          printf 'three' | pbcopy; sleep 1.5
+          echo "--- app log ---"; cat build/run.log; echo "---------------"
+          kill -0 "$APP_PID"                    # still running: it did not crash
+          grep -q "started" build/run.log
+          grep -q "copied stack=3" build/run.log
+          ! grep -q "copied stack=4" build/run.log
+          kill "$APP_PID"
+
+      - name: Publish the download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest build/Multipaste.zip \
+            --title "Latest build" \
+            --notes "Built from ${GITHUB_SHA}." \
+            --target "${GITHUB_SHA}"
