@@ -55,6 +55,13 @@ copy x1 0.4; copy x2 0.4; copy x3 0.6
 a=$(pbpaste); sleep 0.5; b=$(pbpaste); sleep 0.5; c=$(pbpaste); sleep 1
 expect "half a second apart" "x1 x2 x3" "$a $b $c"
 
+echo "# again and again"
+for round in 1 2 3 4 5 6; do
+  copy "k$round-1" 0.3; copy "k$round-2" 0.3; copy "k$round-3" 0.5
+  a=$(pbpaste); sleep 0.4; b=$(pbpaste); sleep 0.4; c=$(pbpaste); sleep 0.6
+  expect "round $round" "k$round-1 k$round-2 k$round-3" "$a $b $c"
+done
+
 echo "# images"
 for n in 1 2 3; do "$TOOL" make-png $((n * 8)) "build/t$n.png"; done
 for n in 1 2 3; do "$TOOL" copy-png "build/t$n.png"; sleep 1; done
@@ -89,6 +96,9 @@ expect "it is left on the clipboard untouched" secret "$(pbpaste)"
 expect "and not kept" yes "$(logged 'left alone')"
 copy s2
 expect "the next copy starts fresh" s2 "$(pbpaste)"; sleep 1
+
+echo "# nothing dropped"
+expect "the private copy is the only one that was not kept" 1 "$(grep -c 'left alone' "$LOG")"
 
 echo "# quitting"
 copy q1; copy q2

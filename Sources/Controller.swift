@@ -24,8 +24,13 @@ final class Controller: NSObject {
     private var pasteAllItem: NSMenuItem?
     private var clearItem: NSMenuItem?
     private var signals: [DispatchSourceSignal] = []
+    private var awake: NSObjectProtocol?
 
     func start() {
+        // macOS slows the timers of an app with nothing on screen. A slow check here would leave a longer gap
+        // in which a paste goes unseen. The Mac can still go to sleep.
+        awake = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Watching the clipboard")
+
         buildMenu()
 
         stack.onChange = { [weak self] in

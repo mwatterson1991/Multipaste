@@ -73,6 +73,13 @@ final class PasteboardWatcher {
     private let pasteboard = NSPasteboard.general
     private var lastChange: Int
     private var timer: Timer?
+    /// A change has been seen and not read yet.
+    private var unread = false
+    private var emptyReads = 0
+
+    private static let tick: TimeInterval = 0.025
+    // Half a second of an empty clipboard means it was emptied, not that a copy is still on its way.
+    private static let emptyReadsAllowed = 20
 
     init() {
         lastChange = NSPasteboard.general.changeCount
@@ -86,10 +93,10 @@ final class PasteboardWatcher {
     // macOS has no "something was copied" notification; watching the change counter is how every clipboard tool does it.
     // The check is frequent because a paste made before the app has taken a new copy in goes unseen.
     func start() {
-        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: PasteboardWatcher.tick, repeats: true) { [weak self] _ in
             self?.poll()
         }
-        timer.tolerance = 0.01
+        timer.tolerance = PasteboardWatcher.tick / 5
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
@@ -97,18 +104,39 @@ final class PasteboardWatcher {
     /// Call right after writing to the pasteboard ourselves, so our own writes are not mistaken for copies.
     func sync() {
         lastChange = pasteboard.changeCount
+        unread = false
     }
 
     private func poll() {
         let change = pasteboard.changeCount
-        guard change != lastChange else { return }
-        lastChange = change
+        if change != lastChange {
+            // An app can announce a copy a moment before it supplies the contents.
+            // Reading on the next tick, not this one, gives it time to finish.
+            lastChange = change
+            unread = true
+            emptyReads = 0
+            return
+        }
+        guard unread else { return }
+
         // Asking which formats are present does not ask for the contents, so this never looks like a paste.
-        if pasteboard.types?.contains(Offer.marker) == true { return }
-        if let clip = Clip.capture(from: pasteboard) {
+        if pasteboard.types?.contains(Offer.marker) == true {
+            unread = false
+            return
+        }
+        switch Clip.capture(from: pasteboard) {
+        case .clip(let clip):
+            unread = false
             onCopy?(clip)
-        } else {
+        case .secret:
+            unread = false
             onPrivateCopy?()
+        case .nothing:
+            emptyReads += 1
+            if emptyReads >= PasteboardWatcher.emptyReadsAllowed {
+                unread = false
+                onPrivateCopy?()
+            }
         }
     }
 }

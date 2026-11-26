@@ -36,20 +36,27 @@ struct Clip: Equatable {
     private static let webAddress = NSPasteboard.PasteboardType("public.url")
     private static let imageTypes: Set<NSPasteboard.PasteboardType> = [png, tiff, jpeg, gif, heic, webp]
 
-    /// Nil when there is nothing to keep, or when the source app marked the copy as private.
-    static func capture(from pasteboard: NSPasteboard) -> Clip? {
-        guard let pasteboardItems = pasteboard.pasteboardItems else { return nil }
+    enum Capture {
+        case clip(Clip)
+        /// The source app marked the copy as private.
+        case secret
+        /// Nothing readable is there: the clipboard was emptied, or an app has announced a copy and not supplied it yet.
+        case nothing
+    }
+
+    static func capture(from pasteboard: NSPasteboard) -> Capture {
+        guard let pasteboardItems = pasteboard.pasteboardItems else { return .nothing }
         var items: [[Rep]] = []
         for item in pasteboardItems {
-            if item.types.contains(where: { privateMarkers.contains($0.rawValue) }) { return nil }
+            if item.types.contains(where: { privateMarkers.contains($0.rawValue) }) { return .secret }
             let reps = item.types.compactMap { type -> Rep? in
                 guard let data = item.data(forType: type) else { return nil }
                 return Rep(type: type, data: data)
             }
             if !reps.isEmpty { items.append(reps) }
         }
-        guard !items.isEmpty else { return nil }
-        return Clip(items: items, kind: classify(items))
+        guard !items.isEmpty else { return .nothing }
+        return .clip(Clip(items: items, kind: classify(items)))
     }
 
     private static func classify(_ items: [[Rep]]) -> Kind {
